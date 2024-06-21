@@ -482,7 +482,7 @@ class CompressionApp:
             print("Format not supported.")
 
     def compress_video(self):
-        if not hasattr(self, 'video_path'):
+        if not hasattr(self, 'video_path') or self.video_path is None:
             print("Load a video first.")
             return
 
@@ -507,9 +507,9 @@ class CompressionApp:
             elapsed_time = end_time - start_time
 
             file_size = len(compressed_data)
-            self.decompressed_audio_result_label.config(text=f"Video Compressed Successfully, Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
+            self.video_result_label.config(text=f"Video Compressed Successfully\nTime Elapsed: {elapsed_time:.2f} seconds\nSize: {file_size / 1024:.2f} KB")
         except Exception as e:
-            self.decompressed_audio_result_label.config(text=f"Compression error: {str(e)}")
+            self.video_result_label.config(text=f"Compression error: {str(e)}")
             print(f"Compression error: {str(e)}")
 
     def save_video(self):
@@ -558,9 +558,9 @@ class CompressionApp:
             elapsed_time = end_time - start_time
 
             file_size = len(decompressed_data)
-            self.decompressed_audio_result_label.config(text=f"Video Decompressed Successfully, Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
+            self.decompressed_video_result_label.config(text=f"Video Decompressed Successfully, Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
         except Exception as e:
-            self.decompressed_audio_result_label.config(text=f"Decompression error: {str(e)}")
+            self.decompressed_video_result_label.config(text=f"Decompression error: {str(e)}")
             print(f"Compression error: {str(e)}")
 
     def save_decompressed_video(self):
