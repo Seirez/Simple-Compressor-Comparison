@@ -1,12 +1,9 @@
 import tkinter as tk
 from tkinter import filedialog
-import cv2
-from PIL import Image, ImageTk
-from pydub import AudioSegment
 import os
 import time
-import subprocess
-import numpy as np
+import gzip
+import lzma
 
 class CompressionApp:
     def __init__(self, root):
@@ -29,32 +26,95 @@ class CompressionApp:
         self.audio_compressor_button = tk.Radiobutton(self.menu_frame, text="Audio Compression", variable=self.task_var, value="Audio Compression")
         self.audio_compressor_button.grid(row=0, column=1)
 
-        self.image_resizer_button = tk.Radiobutton(self.menu_frame, text="Image Compression", variable=self.task_var, value="Image Compression")
-        self.image_resizer_button.grid(row=0, column=2)
+        self.audio_decompressor_button = tk.Radiobutton(self.menu_frame, text="Audio Decompression", variable=self.task_var, value="Audio Decompression")
+        self.audio_decompressor_button.grid(row=0, column=2)
+
+        self.image_compressor_button = tk.Radiobutton(self.menu_frame, text="Image Compression", variable=self.task_var, value="Image Compression")
+        self.image_compressor_button.grid(row=0, column=3)
+
+        self.image_decompressor_button = tk.Radiobutton(self.menu_frame, text="Image Decompression", variable=self.task_var, value="Image Decompression")
+        self.image_decompressor_button.grid(row=0, column=4)
 
         self.video_compressor_button = tk.Radiobutton(self.menu_frame, text="Video Compression", variable=self.task_var, value="Video Compression")
-        self.video_compressor_button.grid(row=0, column=3)
+        self.video_compressor_button.grid(row=0, column=5)
+
+        self.video_decompressor_button = tk.Radiobutton(self.menu_frame, text="Video Decompression", variable=self.task_var, value="Video Decompression")
+        self.video_decompressor_button.grid(row=0, column=6)
 
         self.perform_button = tk.Button(self.menu_frame, text="Perform Task", command=self.perform_task)
-        self.perform_button.grid(row=0, column=4, padx=10)
+        self.perform_button.grid(row=0, column=7, padx=10)
+
+        # Audio Compression Widgets
+        self.audio_frame = tk.Frame(self.main_frame)
+
+        self.load_audio_button = tk.Button(self.audio_frame, text="Load Audio", command=self.load_audio)
+        self.load_audio_button.pack(pady=5)
+
+        self.audio_load_label = tk.Label(self.audio_frame)
+        self.audio_load_label.pack(pady=5)
+
+        self.algorithm_var_audio = tk.StringVar(value="gzip")
+        self.algorithm_label_audio = tk.Label(self.audio_frame, text="Choose Compression Algorithm:")
+        self.algorithm_label_audio.pack()
+
+        self.algorithm1_radio_audio = tk.Radiobutton(self.audio_frame, text="gzip", variable=self.algorithm_var_audio, value="gzip")
+        self.algorithm1_radio_audio.pack()
+        self.algorithm2_radio_audio = tk.Radiobutton(self.audio_frame, text="lzma", variable=self.algorithm_var_audio, value="lzma")
+        self.algorithm2_radio_audio.pack()
+
+        self.compress_audio_button = tk.Button(self.audio_frame, text="Compress Audio", command=self.compress_audio)
+        self.compress_audio_button.pack(pady=5)
+
+        self.save_audio_button = tk.Button(self.audio_frame, text="Save Audio", command=self.save_compressed_audio)
+        self.save_audio_button.pack(pady=5)
+
+        self.audio_result_label = tk.Label(self.audio_frame)
+        self.audio_result_label.pack(pady=5)
+
+        # Audio Decompression Widgets
+        self.daudio_frame = tk.Frame(self.main_frame)
+
+        self.load_compressed_audio_button = tk.Button(self.daudio_frame, text="Load Compressed Audio", command=self.load_compressed_audio)
+        self.load_compressed_audio_button.pack(pady=5)
+
+        self.compressed_audio_load_label = tk.Label(self.daudio_frame)
+        self.compressed_audio_load_label.pack(pady=5)
+
+        self.algorithm_var_deaudio = tk.StringVar(value="gzip")
+        self.algorithm_label_deaudio = tk.Label(self.daudio_frame, text="Choose Decompression Algorithm:")
+        self.algorithm_label_deaudio.pack()
+
+        self.algorithm1_radio_deaudio = tk.Radiobutton(self.daudio_frame, text="gzip", variable=self.algorithm_var_deaudio, value="gzip")
+        self.algorithm1_radio_deaudio.pack()
+        self.algorithm2_radio_deaudio = tk.Radiobutton(self.daudio_frame, text="lzma", variable=self.algorithm_var_deaudio, value="lzma")
+        self.algorithm2_radio_deaudio.pack()
+
+        self.decompress_audio_button = tk.Button(self.daudio_frame, text="Decompress Audio", command=self.decompress_audio)
+        self.decompress_audio_button.pack(pady=5)
+
+        self.save_decompressed_audio_button = tk.Button(self.daudio_frame, text="Save Decompressed Audio", command=self.save_decompressed_audio)
+        self.save_decompressed_audio_button.pack(pady=5)
+
+        self.decompressed_audio_result_label = tk.Label(self.daudio_frame)
+        self.decompressed_audio_result_label.pack(pady=5)
 
         # Image Compression Widgets
         self.image_frame = tk.Frame(self.main_frame)
 
-        self.image_label = tk.Label(self.image_frame)
-        self.image_label.pack()
-
         self.load_image_button = tk.Button(self.image_frame, text="Load Image", command=self.load_image)
         self.load_image_button.pack(pady=5)
 
-        self.algorithm_var = tk.StringVar(value="DCT")
-        self.algorithm_label = tk.Label(self.image_frame, text="Choose Compression Algorithm:")
-        self.algorithm_label.pack()
+        self.image_load_label = tk.Label(self.image_frame)
+        self.image_load_label.pack(pady=5)
 
-        self.algorithm1_radio = tk.Radiobutton(self.image_frame, text="DCT", variable=self.algorithm_var, value="DCT")
-        self.algorithm1_radio.pack()
-        self.algorithm2_radio = tk.Radiobutton(self.image_frame, text="Fractal", variable=self.algorithm_var, value="Fractal")
-        self.algorithm2_radio.pack()
+        self.algorithm_var_image = tk.StringVar(value="gzip")
+        self.algorithm_label_image = tk.Label(self.image_frame, text="Choose Compression Algorithm:")
+        self.algorithm_label_image.pack()
+
+        self.algorithm1_radio_image = tk.Radiobutton(self.image_frame, text="gzip", variable=self.algorithm_var_image, value="gzip")
+        self.algorithm1_radio_image.pack()
+        self.algorithm2_radio_image = tk.Radiobutton(self.image_frame, text="lzma", variable=self.algorithm_var_image, value="lzma")
+        self.algorithm2_radio_image.pack()
 
         self.compress_image_button = tk.Button(self.image_frame, text="Compress Image", command=self.compress_image)
         self.compress_image_button.pack(pady=5)
@@ -65,29 +125,32 @@ class CompressionApp:
         self.image_result_label = tk.Label(self.image_frame)
         self.image_result_label.pack(pady=5)
 
-        # Audio Compression Widgets
-        self.audio_frame = tk.Frame(self.main_frame)
+        # Image Decompression Widgets
+        self.dimage_frame = tk.Frame(self.main_frame)
 
-        self.load_audio_button = tk.Button(self.audio_frame, text="Load Audio", command=self.load_audio)
-        self.load_audio_button.pack(pady=5)
+        self.load_compressed_image_button = tk.Button(self.dimage_frame, text="Load Compressed Image", command=self.load_compressed_image)
+        self.load_compressed_image_button.pack(pady=5)
 
-        self.algorithm_var_audio = tk.StringVar(value="DCT")
-        self.algorithm_label_audio = tk.Label(self.audio_frame, text="Choose Compression Algorithm:")
-        self.algorithm_label_audio.pack()
+        self.compressed_image_load_label = tk.Label(self.dimage_frame)
+        self.compressed_image_load_label.pack(pady=5)
 
-        self.algorithm1_radio_audio = tk.Radiobutton(self.audio_frame, text="DCT", variable=self.algorithm_var_audio, value="DCT")
-        self.algorithm1_radio_audio.pack()
-        self.algorithm2_radio_audio = tk.Radiobutton(self.audio_frame, text="Fractal", variable=self.algorithm_var_audio, value="Fractal")
-        self.algorithm2_radio_audio.pack()
+        self.algorithm_var_deimage = tk.StringVar(value="gzip")
+        self.algorithm_label_deimage = tk.Label(self.dimage_frame, text="Choose Decompression Algorithm:")
+        self.algorithm_label_deimage.pack()
 
-        self.compress_audio_button = tk.Button(self.audio_frame, text="Compress Audio", command=self.compress_audio)
-        self.compress_audio_button.pack(pady=5)
+        self.algorithm1_radio_deimage = tk.Radiobutton(self.dimage_frame, text="gzip", variable=self.algorithm_var_deimage, value="gzip")
+        self.algorithm1_radio_deimage.pack()
+        self.algorithm2_radio_deimage = tk.Radiobutton(self.dimage_frame, text="lzma", variable=self.algorithm_var_deimage, value="lzma")
+        self.algorithm2_radio_deimage.pack()
 
-        self.save_audio_button = tk.Button(self.audio_frame, text="Save Audio", command=self.save_audio)
-        self.save_audio_button.pack(pady=5)
+        self.decompress_image_button = tk.Button(self.dimage_frame, text="Decompress Image", command=self.decompress_image)
+        self.decompress_image_button.pack(pady=5)
 
-        self.audio_result_label = tk.Label(self.audio_frame)
-        self.audio_result_label.pack(pady=5)
+        self.save_decompressed_image_button = tk.Button(self.dimage_frame, text="Save Decompressed Image", command=self.save_decompressed_image)
+        self.save_decompressed_image_button.pack(pady=5)
+
+        self.decompressed_image_result_label = tk.Label(self.dimage_frame)
+        self.decompressed_image_result_label.pack(pady=5)
 
         # Video Compression Widgets
         self.video_frame = tk.Frame(self.main_frame)
@@ -95,13 +158,16 @@ class CompressionApp:
         self.load_video_button = tk.Button(self.video_frame, text="Load Video", command=self.load_video)
         self.load_video_button.pack(pady=5)
 
-        self.algorithm_var_video = tk.StringVar(value="DCT")
+        self.video_load_label = tk.Label(self.video_frame)
+        self.video_load_label.pack(pady=5)
+
+        self.algorithm_var_video = tk.StringVar(value="gzip")
         self.algorithm_label_video = tk.Label(self.video_frame, text="Choose Compression Algorithm:")
         self.algorithm_label_video.pack()
 
-        self.algorithm1_radio_video = tk.Radiobutton(self.video_frame, text="DCT", variable=self.algorithm_var_video, value="DCT")
+        self.algorithm1_radio_video = tk.Radiobutton(self.video_frame, text="gzip", variable=self.algorithm_var_video, value="gzip")
         self.algorithm1_radio_video.pack()
-        self.algorithm2_radio_video = tk.Radiobutton(self.video_frame, text="Fractal", variable=self.algorithm_var_video, value="Fractal")
+        self.algorithm2_radio_video = tk.Radiobutton(self.video_frame, text="lzma", variable=self.algorithm_var_video, value="lzma")
         self.algorithm2_radio_video.pack()
 
         self.compress_video_button = tk.Button(self.video_frame, text="Compress Video", command=self.compress_video)
@@ -113,212 +179,402 @@ class CompressionApp:
         self.video_result_label = tk.Label(self.video_frame)
         self.video_result_label.pack(pady=5)
 
-        # Hide processing frames by default
-        self.image_frame.pack_forget()
-        self.audio_frame.pack_forget()
-        self.video_frame.pack_forget()
+        # Video Decompression Widgets
+        self.dvideo_frame = tk.Frame(self.main_frame)
 
-        # Initialize attributes
-        self.image = None
-        self.audio = None
-        self.video = None
-        self.compressed_image = None
-        self.compressed_audio = None
-        self.compressed_video = None
+        self.load_compressed_video_button = tk.Button(self.dvideo_frame, text="Load Compressed Video", command=self.load_compressed_video)
+        self.load_compressed_video_button.pack(pady=5)
 
-    def load_image(self):
-        path = filedialog.askopenfilename()
-        if path:
-            self.image = cv2.imread(path)
-            self.image = cv2.cvtColor(self.image, cv2.COLOR_BGR2RGB)
-            self.display_image(self.image)
+        self.compressed_video_load_label = tk.Label(self.dvideo_frame)
+        self.compressed_video_load_label.pack(pady=5)
 
-    def display_image(self, image):
-        image = Image.fromarray(image)
-        image = ImageTk.PhotoImage(image)
-        self.image_label.config(image=image)
-        self.image_label.image = image
+        self.algorithm_var_devideo = tk.StringVar(value="gzip")
+        self.algorithm_label_devideo = tk.Label(self.dvideo_frame, text="Choose Decompression Algorithm:")
+        self.algorithm_label_devideo.pack()
 
-    def compress_image_dct(self, image):
-        # Convert image to float32 and grayscale
-        image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        image_float32 = np.float32(image_gray) / 255.0
-        
-        # Apply DCT
-        image_dct = cv2.dct(image_float32)
-        
-        # Perform quantization (optional)
-        # Example: quantization_matrix = np.ones(image_dct.shape, dtype=np.float32) * 0.1
-        # image_dct_quantized = np.round(image_dct / quantization_matrix)
-        # compressed_image_float32 = cv2.idct(image_dct_quantized * quantization_matrix)
-        
-        # Apply inverse DCT
-        compressed_image_float32 = cv2.idct(image_dct)
-        
-        # Convert back to uint8 for display
-        compressed_image = np.uint8(compressed_image_float32 * 255.0)
-        
-        return compressed_image
+        self.algorithm1_radio_devideo = tk.Radiobutton(self.dvideo_frame, text="gzip", variable=self.algorithm_var_devideo, value="gzip")
+        self.algorithm1_radio_devideo.pack()
+        self.algorithm2_radio_devideo = tk.Radiobutton(self.dvideo_frame, text="lzma", variable=self.algorithm_var_devideo, value="lzma")
+        self.algorithm2_radio_devideo.pack()
 
-    def compress_image_fractal(self, image):
-        height, width = image.shape[:2]
-        block_size = 8  # Assuming a block size of 8
+        self.decompress_video_button = tk.Button(self.dvideo_frame, text="Decompress Video", command=self.decompress_video)
+        self.decompress_video_button.pack(pady=5)
 
-        fractal_image = np.zeros_like(image)
+        self.save_decompressed_video_button = tk.Button(self.dvideo_frame, text="Save Decompressed Video", command=self.save_decompressed_video)
+        self.save_decompressed_video_button.pack(pady=5)
 
-        for y in range(0, height, block_size):
-            for x in range(0, width, block_size):
-                avg = np.mean(image[max(0, y - block_size):y, max(0, x - block_size):x].ravel()) if (y >= block_size and x >= block_size) else image[y, x]
-                fractal_image[y, x] = avg
+        self.decompressed_video_result_label = tk.Label(self.dvideo_frame)
+        self.decompressed_video_result_label.pack(pady=5)
 
-                if y > block_size and x > block_size:
-                    fractal_image[y - block_size, x] = (image[y - block_size, x] + avg) / 2 if (y - block_size) >= 0 else avg
-                    fractal_image[y, x - block_size] = (image[y, x - block_size] + avg) / 2 if (x - block_size) >= 0 else avg
-
-                if y > block_size and (x + block_size) < width:
-                    temp_avg = avg if (x - block_size) < 0 or (y + block_size) >= height else (fractal_image[y + block_size, x - block_size] + avg) / 2
-                if (y + block_size) < height and x > block_size:
-                    fractal_image[y + block_size, x - block_size] = (image[y + block_size, x - block_size] + avg) / 2 if (x - block_size) >= 0 and (y + block_size) < height else avg
-
-        print("Compressed a frame.")
-        return fractal_image
-    
-    def compress_image(self):
-        if self.image is not None:
-            algorithm = self.algorithm_var.get()
-            start_time = time.time()
-            if algorithm == "DCT":
-                self.compressed_image = self.compress_image_dct(self.image)
-            elif algorithm == "Fractal":
-                self.compressed_image = self.compress_image_fractal(self.image)
-            end_time = time.time()
-            elapsed_time = end_time - start_time
-
-            temp_path = "temp_compressed_image.png"
-            cv2.imwrite(temp_path, cv2.cvtColor(self.compressed_image, cv2.COLOR_RGB2BGR))
-            self.display_image(self.compressed_image)
-
-            file_size = os.path.getsize(temp_path)
-            os.remove(temp_path)
-
-            self.image_result_label.config(text=f"Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
-        else:
-            print("No image loaded.")
-
-    def save_image(self):
-        if self.compressed_image is not None:
-            path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png")])
-            if path:
-                cv2.imwrite(path, cv2.cvtColor(self.compressed_image, cv2.COLOR_RGB2BGR))
-                print("Image saved successfully.")
-        else:
-            print("No compressed image to save.")
-
-    def load_audio(self):
-        path = filedialog.askopenfilename()
-        if path:
-            self.audio = AudioSegment.from_file(path)
-
-    def compress_audio_dct(self, audio):
-        # Placeholder for DCT compression for audio
-        # For simplicity, we'll export the audio at 64 kbps
-        return audio.export(format="mp3", bitrate="64k")
-
-    def compress_audio_fractal(self, audio):
-        # Placeholder for Fractal compression for audio
-        # For simplicity, we'll export the audio at 32 kbps
-        return audio.export(format="mp3", bitrate="32k")
-
-    def compress_audio(self):
-        if self.audio:
-            algorithm = self.algorithm_var_audio.get()
-            start_time = time.time()
-            temp_path = "temp_compressed_audio.mp3"
-            if algorithm == "DCT":
-                self.compressed_audio = self.compress_audio_dct(self.audio)
-            elif algorithm == "Fractal":
-                self.compressed_audio = self.compress_audio_fractal(self.audio)
-            end_time = time.time()
-            elapsed_time = end_time - start_time
-
-            file_size = os.path.getsize(temp_path)
-            os.remove(temp_path)
-
-            self.audio_result_label.config(text=f"Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
-        else:
-            print("No audio loaded.")
-
-    def save_audio(self):
-        if self.compressed_audio:
-            path = filedialog.asksaveasfilename(defaultextension=".mp3", filetypes=[("MP3 files", "*.mp3")])
-            if path:
-                self.compressed_audio.export(path, format="mp3")
-                print("Audio saved successfully.")
-        else:
-            print("No compressed audio to save.")
-
-    def load_video(self):
-        path = filedialog.askopenfilename()
-        if path:
-            self.video = path  # Just storing the path for simplicity
-
-    def compress_video_dct(self, video_path):
-        # Placeholder for DCT compression for video
-        temp_path = "temp_compressed_video.mp4"
-        subprocess.run(['ffmpeg', '-i', video_path, '-c:v', 'libx264', temp_path])
-        return temp_path
-
-    def compress_video_fractal(self, video_path):
-        # Placeholder for Fractal compression for video
-        # For simplicity, this function will resize the video
-        temp_path = "temp_compressed_video.mp4"
-        subprocess.run(['ffmpeg', '-i', video_path, '-vf', 'scale=iw/2:ih/2', temp_path])
-        return temp_path
-
-    def compress_video(self):
-        if self.video:
-            algorithm = self.algorithm_var_video.get()
-            start_time = time.time()
-            if algorithm == "DCT":
-                self.compressed_video = self.compress_video_dct(self.video)
-            elif algorithm == "Fractal":
-                self.compressed_video = self.compress_video_fractal(self.video)
-            end_time = time.time()
-            elapsed_time = end_time - start_time
-
-            file_size = os.path.getsize(self.compressed_video)
-            self.video_result_label.config(text=f"Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
-        else:
-            print("No video loaded.")
-
-    def save_video(self):
-        if self.compressed_video:
-            path = filedialog.asksaveasfilename(defaultextension=".mp4", filetypes=[("MP4 files", "*.mp4")])
-            if path:
-                os.rename(self.compressed_video, path)
-                print("Video saved successfully.")
-        else:
-            print("No compressed video to save.")
+        self.current_frame = None
 
     def perform_task(self):
         task = self.task_var.get()
-        if task == "Image Compression":
+        if task == "Audio Compression":
             self.audio_frame.pack_forget()
-            self.video_frame.pack_forget()
-            self.image_frame.pack()
-        elif task == "Audio Compression":
+            self.daudio_frame.pack_forget()
             self.image_frame.pack_forget()
+            self.dimage_frame.pack_forget()
             self.video_frame.pack_forget()
-            self.audio_frame.pack()
-        elif task == "Video Compression":
-            self.image_frame.pack_forget()
-            self.audio_frame.pack_forget()
-            self.video_frame.pack()
+            self.dvideo_frame.pack_forget()
 
-def main():
+            self.current_frame = self.audio_frame
+        elif task == "Audio Decompression":
+            self.audio_frame.pack_forget()
+            self.daudio_frame.pack_forget()
+            self.image_frame.pack_forget()
+            self.dimage_frame.pack_forget()
+            self.video_frame.pack_forget()
+            self.dvideo_frame.pack_forget()
+
+            self.current_frame = self.daudio_frame
+        elif task == "Image Compression":
+            self.audio_frame.pack_forget()
+            self.daudio_frame.pack_forget()
+            self.image_frame.pack_forget()
+            self.dimage_frame.pack_forget()
+            self.video_frame.pack_forget()
+            self.dvideo_frame.pack_forget()
+
+            self.current_frame = self.image_frame
+        elif task == "Image Decompression":
+            self.audio_frame.pack_forget()
+            self.daudio_frame.pack_forget()
+            self.image_frame.pack_forget()
+            self.dimage_frame.pack_forget()
+            self.video_frame.pack_forget()
+            self.dvideo_frame.pack_forget()
+            
+            self.current_frame = self.dimage_frame
+        elif task == "Video Compression":
+            self.audio_frame.pack_forget()
+            self.daudio_frame.pack_forget()
+            self.image_frame.pack_forget()
+            self.dimage_frame.pack_forget()
+            self.video_frame.pack_forget()
+            self.dvideo_frame.pack_forget()
+            
+            self.current_frame = self.video_frame
+        elif task == "Video Decompression":
+            self.audio_frame.pack_forget()
+            self.daudio_frame.pack_forget()
+            self.image_frame.pack_forget()
+            self.dimage_frame.pack_forget()
+            self.video_frame.pack_forget()
+            self.dvideo_frame.pack_forget()
+            
+            self.current_frame = self.dvideo_frame
+
+        self.current_frame.pack()
+
+    # Audio Compression Methods
+    def load_audio(self):
+        path = filedialog.askopenfilename(filetypes=[("Audio Files", "*.mp3;*.wav;*.ogg")])
+        if path:
+            self.audio_path = path
+            self.audio_load_label.config(text="Audio Loaded")
+        else:
+            print("Format not supported.")
+
+    def compress_audio(self):
+        if not hasattr(self, 'audio_path'):
+            print("Load an audio file first.")
+            return
+
+        algorithm = self.algorithm_var_audio.get()
+
+        try:
+            with open(self.audio_path, 'rb') as f_in:
+                audio_data = f_in.read()
+
+            start_time = time.time()
+
+            if algorithm == "gzip":
+                compressed_data = gzip.compress(audio_data)
+            elif algorithm == "lzma":
+                compressed_data = lzma.compress(audio_data)
+            else:
+                print("Unknown compression algorithm.")
+                return
+
+            self.compressed_audio_data = compressed_data
+
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+
+            file_size = len(compressed_data)
+            self.audio_result_label.config(text=f"Audio Compressed Successfully, Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
+        except Exception as e:
+            self.audio_result_label.config(text=f"Compression error: {str(e)}")
+            print(f"Compression error: {str(e)}")
+
+    def save_compressed_audio(self):
+        if not hasattr(self, 'compressed_audio_data'):
+            print("Compress an audio file first.")
+            return
+
+        save_path = filedialog.asksaveasfilename(defaultextension=".bin")
+        if save_path:
+            with open(save_path, 'wb') as f_out:
+                f_out.write(self.compressed_audio_data)
+            print(f"Compressed audio saved to {save_path}")
+
+    # Audio Decompression Methods
+    def load_compressed_audio(self):
+        path = filedialog.askopenfilename(filetypes=[("Compressed Audio Files", "*.bin")])
+        if path:
+            self.compressed_audio_path = path
+            self.compressed_audio_load_label.config(text="Compressed Audio Loaded")
+        else:
+            print("Format not supported.")
+
+    def decompress_audio(self):
+        if not hasattr(self, 'compressed_audio_path'):
+            print("Load a compressed audio file first.")
+            return
+
+        algorithm = self.algorithm_var_deaudio.get()
+
+        try:
+            with open(self.compressed_audio_path, 'rb') as f_in:
+                compressed_data = f_in.read()
+
+            start_time = time.time()
+
+            if algorithm == "gzip":
+                decompressed_data = gzip.decompress(compressed_data)
+            elif algorithm == "lzma":
+                decompressed_data = lzma.decompress(compressed_data)
+            else:
+                print("Unknown decompression algorithm.")
+                return
+
+            self.decompressed_audio_data = decompressed_data
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+
+            file_size = len(decompressed_data)
+            self.decompressed_audio_result_label.config(text=f"Audio Decompressed Successfully, Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
+        except Exception as e:
+            self.decompressed_audio_result_label.config(text=f"Decompression error: {str(e)}")
+            print(f"Compression error: {str(e)}")
+
+    def save_decompressed_audio(self):
+        if not hasattr(self, 'decompressed_audio_data'):
+            print("Decompress an audio file first.")
+            return
+
+        save_path = filedialog.asksaveasfilename(defaultextension=".wav")
+        if save_path:
+            with open(save_path, 'wb') as f_out:
+                f_out.write(self.decompressed_audio_data)
+            print(f"Decompressed audio saved to {save_path}")
+
+    # Image Compression Methods
+    def load_image(self):
+        path = filedialog.askopenfilename(filetypes=[("Image Files", "*.jpg;*.png;*.bmp")])
+        if path:
+            self.image_path = path
+            self.image_load_label.config(text="Image Loaded")
+        else:
+            print("Format not supported.")
+
+    def compress_image(self):
+        if not hasattr(self, 'image_path'):
+            print("Load an image first.")
+            return
+
+        algorithm = self.algorithm_var_image.get()
+
+        try:
+            with open(self.image_path, 'rb') as f_in:
+                img_data = f_in.read()
+
+            start_time = time.time()
+
+            if algorithm == "gzip":
+                compressed_data = gzip.compress(img_data)
+            elif algorithm == "lzma":
+                compressed_data = lzma.compress(img_data)
+            else:
+                print("Unknown compression algorithm.")
+                return
+
+            self.compressed_image_data = compressed_data
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+
+            file_size = len(compressed_data)
+            self.image_result_label.config(text=f"Image Compressed Successfully, Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
+        except Exception as e:
+            self.image_result_label.config(text=f"Compression error: {str(e)}")
+            print(f"Compression error: {str(e)}")
+
+    def save_image(self):
+        if not hasattr(self, 'compressed_image_data'):
+            print("Compress an image first.")
+            return
+
+        save_path = filedialog.asksaveasfilename(defaultextension=".bin")
+        if save_path:
+            with open(save_path, 'wb') as f_out:
+                f_out.write(self.compressed_image_data)
+            print(f"Compressed image saved to {save_path}")
+
+    # Image Decompression Methods
+    def load_compressed_image(self):
+        path = filedialog.askopenfilename(filetypes=[("Compressed Image Files", "*.bin")])
+        if path:
+            self.compressed_image_path = path
+            self.compressed_image_load_label.config(text="Compressed Image Loaded")
+        else:
+            print("Format not supported.")
+
+    def decompress_image(self):
+        if not hasattr(self, 'compressed_image_path'):
+            print("Load a compressed image first.")
+            return
+
+        algorithm = self.algorithm_var_deimage.get()
+
+        try:
+            with open(self.compressed_image_path, 'rb') as f_in:
+                compressed_data = f_in.read()
+
+            start_time = time.time()
+
+            if algorithm == "gzip":
+                decompressed_data = gzip.decompress(compressed_data)
+            elif algorithm == "lzma":
+                decompressed_data = lzma.decompress(compressed_data)
+            else:
+                print("Unknown decompression algorithm.")
+                return
+
+            self.decompressed_image_data = decompressed_data
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+
+            file_size = len(decompressed_data)
+            self.decompressed_image_result_label.config(text=f"Image Decompressed Successfully, Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
+        except Exception as e:
+            self.decompressed_image_result_label.config(text=f"Decompression error: {str(e)}")
+            print(f"Compression error: {str(e)}")
+
+    def save_decompressed_image(self):
+        if not hasattr(self, 'decompressed_image_data'):
+            print("Decompress an image first.")
+            return
+
+        save_path = filedialog.asksaveasfilename(defaultextension=".jpg")
+        if save_path:
+            with open(save_path, 'wb') as f_out:
+                f_out.write(self.decompressed_image_data)
+            print(f"Decompressed image saved to {save_path}")
+
+    # Video Compression Methods
+    def load_video(self):
+        path = filedialog.askopenfilename(filetypes=[("Video Files", "*.mp4;*.avi;*.mov")])
+        if path:
+            self.video_path = path
+            self.video_load_label.config(text="Video Loaded")
+        else:
+            print("Format not supported.")
+
+    def compress_video(self):
+        if not hasattr(self, 'video_path'):
+            print("Load a video first.")
+            return
+
+        algorithm = self.algorithm_var_video.get()
+
+        try:
+            with open(self.video_path, 'rb') as f_in:
+                video_data = f_in.read()
+
+            start_time = time.time()
+
+            if algorithm == "gzip":
+                compressed_data = gzip.compress(video_data)
+            elif algorithm == "lzma":
+                compressed_data = lzma.compress(video_data)
+            else:
+                print("Unknown compression algorithm.")
+                return
+
+            self.compressed_video_data = compressed_data
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+
+            file_size = len(compressed_data)
+            self.decompressed_audio_result_label.config(text=f"Video Compressed Successfully, Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
+        except Exception as e:
+            self.decompressed_audio_result_label.config(text=f"Compression error: {str(e)}")
+            print(f"Compression error: {str(e)}")
+
+    def save_video(self):
+        if not hasattr(self, 'compressed_video_data'):
+            print("Compress a video first.")
+            return
+
+        save_path = filedialog.asksaveasfilename(defaultextension=".bin")
+        if save_path:
+            with open(save_path, 'wb') as f_out:
+                f_out.write(self.compressed_video_data)
+            print(f"Compressed video saved to {save_path}")
+
+    # Video Decompression Methods
+    def load_compressed_video(self):
+        path = filedialog.askopenfilename(filetypes=[("Compressed Video Files", "*.bin")])
+        if path:
+            self.compressed_video_path = path
+            self.compressed_video_load_label.config(text="Compressed Video Loaded")
+        else:
+            print("Format not supported.")
+
+    def decompress_video(self):
+        if not hasattr(self, 'compressed_video_path'):
+            print("Load a compressed video first.")
+            return
+
+        algorithm = self.algorithm_var_devideo.get()
+
+        try:
+            with open(self.compressed_video_path, 'rb') as f_in:
+                compressed_data = f_in.read()
+
+            start_time = time.time()
+
+            if algorithm == "gzip":
+                decompressed_data = gzip.decompress(compressed_data)
+            elif algorithm == "lzma":
+                decompressed_data = lzma.decompress(compressed_data)
+            else:
+                print("Unknown decompression algorithm.")
+                return
+
+            self.decompressed_video_data = decompressed_data
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+
+            file_size = len(decompressed_data)
+            self.decompressed_audio_result_label.config(text=f"Video Decompressed Successfully, Time Elapsed: {elapsed_time:.2f} seconds, Size: {file_size / 1024:.2f} KB")
+        except Exception as e:
+            self.decompressed_audio_result_label.config(text=f"Decompression error: {str(e)}")
+            print(f"Compression error: {str(e)}")
+
+    def save_decompressed_video(self):
+        if not hasattr(self, 'decompressed_video_data'):
+            print("Decompress a video first.")
+            return
+
+        save_path = filedialog.asksaveasfilename(defaultextension=".mp4")
+        if save_path:
+            with open(save_path, 'wb') as f_out:
+                f_out.write(self.decompressed_video_data)
+            print(f"Decompressed video saved to {save_path}")
+
+if __name__ == "__main__":
     root = tk.Tk()
     app = CompressionApp(root)
     root.mainloop()
-
-if __name__ == "__main__":
-    main()
